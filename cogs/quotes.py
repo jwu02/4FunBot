@@ -24,6 +24,7 @@ class Quotes(commands.Cog):
 
         except Error as e:
             print(e)
+            await ctx.send("Internal server error encountered.")
 
         finally:
             cursor.close()
@@ -64,6 +65,7 @@ class Quotes(commands.Cog):
 
             except Error as e:
                 print(e)
+                await ctx.send("Internal server error encountered.")
 
             finally:
                 cursor.close()
@@ -85,6 +87,7 @@ class Quotes(commands.Cog):
             
             except Error as e:
                 print(e)
+                await ctx.send("Internal server error encountered.")
 
             finally:
                 cursor.close()
@@ -124,6 +127,7 @@ class Quotes(commands.Cog):
 
         except Error as e:
             print(e)
+            await ctx.send("Internal server error encountered.")
 
         finally:
             cursor.close()
@@ -166,6 +170,7 @@ class Quotes(commands.Cog):
         
         except Error as e:
             print(e)
+            await ctx.send("Internal server error encountered.")
 
         finally:
             cursor.close()
@@ -173,7 +178,6 @@ class Quotes(commands.Cog):
 
     @update_quote.error
     async def update_quote_error(self, ctx, error):
-        print(error)
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Enter a quote ID and a quote after the command.")
 
