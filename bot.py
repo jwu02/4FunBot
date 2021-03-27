@@ -3,10 +3,13 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import os
 
+intents = discord.Intents.default()
+intents.members = True
+
 load_dotenv()
 bot_token = os.getenv("BOT_TOKEN")
 
-bot = commands.Bot("!", case_insensitive=True)
+bot = commands.Bot("!", case_insensitive=True, intents=intents)
 
 @bot.event
 async def on_ready():
