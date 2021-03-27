@@ -20,7 +20,14 @@ class Quotes(commands.Cog):
             cursor.execute(query, args)
 
             conn.commit()
-            await ctx.send("Quote added.")
+            
+            quote_author = ctx.author
+            embed = discord.Embed(title=f"**Added Quote:** ", 
+                                    description=quote, 
+                                    color=discord.Colour.green())
+            embed.set_footer(icon_url=quote_author.avatar_url, 
+                             text=f"Quote added by {quote_author.name}.")
+            await ctx.send(embed=embed)
 
         except Error as e:
             print(e)
@@ -32,6 +39,7 @@ class Quotes(commands.Cog):
 
     @add_quote.error
     async def add_quote_error(self, ctx, error):
+        print(error)
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Enter a quote after the command!")
 
@@ -54,9 +62,13 @@ class Quotes(commands.Cog):
                 row = cursor.fetchone()
 
                 if row is not None:
-                    quote_id = row[0]
-                    quote = row[1]
-                    await ctx.send(f'**Quote {str(quote_id)}:** {quote}')
+                    quote_author = ctx.guild.get_member_named(row[2])
+                    embed = discord.Embed(title=f"**Quote {row[0]}:** ", 
+                                        description=row[1], 
+                                        color=discord.Colour.blue())
+                    embed.set_footer(icon_url=quote_author.avatar_url, 
+                                    text=f"Quote added by {row[2]} on {row[3]}")
+                    await ctx.send(embed=embed)
                 else:
                     await ctx.send("No quote with given ID was found.")
 
@@ -81,9 +93,13 @@ class Quotes(commands.Cog):
                 # fetch the next row in the result set
                 row = cursor.fetchone()
                 
-                quote_id = row[0]
-                quote = row[1]
-                await ctx.send(f'**Quote {str(quote_id)}:** {quote}')
+                quote_author = ctx.guild.get_member_named(row[2])
+                embed = discord.Embed(title=f"**Quote {row[0]}:** ", 
+                                      description=row[1], 
+                                      color=discord.Colour.blue())
+                embed.set_footer(icon_url=quote_author.avatar_url, 
+                                 text=f"Quote added by {row[2]} on {row[3]}")
+                await ctx.send(embed=embed)
             
             except Error as e:
                 print(e)
@@ -95,6 +111,7 @@ class Quotes(commands.Cog):
 
     @quote.error
     async def quote_error(self, ctx, error):
+        print(error)
         if isinstance(error, commands.CommandInvokeError):
             await ctx.send("No quotes has been added.")
 
@@ -118,7 +135,11 @@ class Quotes(commands.Cog):
                 cursor.execute(query, args)
 
                 conn.commit()
-                await ctx.send(f"Removed quote {str(row[0])}: {row[1]}")
+
+                embed = discord.Embed(title=f"Removed quote {str(row[0])}: ", 
+                                      description=row[1], 
+                                      color=discord.Colour.red())
+                await ctx.send(embed=embed)
             else:
                 await ctx.send("No quote with given ID was found.")
 
@@ -135,10 +156,12 @@ class Quotes(commands.Cog):
 
     @remove_quote.error
     async def remove_quote_error(self, ctx, error):
+        print(error)
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Enter a quote ID after the command.")
-
+    
     @commands.command()
+    @commands.has_permissions(ban_members=True)
     async def update_quote(self, ctx, quote_id, *, new_quote):
         try:
             quote_id = int(quote_id)
@@ -161,7 +184,15 @@ class Quotes(commands.Cog):
                 cursor.execute(query, args2)
 
                 conn.commit()
-                await ctx.send(f"Quote {quote_id} has been updated successfully to: {new_quote}")
+
+                quote_author = ctx.guild.get_member_named(row[2])
+                embed = discord.Embed(title=f"Quote {quote_id} has been updated to: ", 
+                                      description=new_quote, 
+                                      color=discord.Colour.orange())
+                embed.set_footer(icon_url=quote_author.avatar_url, 
+                                 text=f"Quote added by {row[2]} on {row[3]}")
+                await ctx.send(embed=embed)
+
             else:
                 await ctx.send("No quote with given ID was found.")
 
@@ -178,8 +209,10 @@ class Quotes(commands.Cog):
 
     @update_quote.error
     async def update_quote_error(self, ctx, error):
+        print(error)
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Enter a quote ID and a quote after the command.")
+
 
 def setup(bot):
     bot.add_cog(Quotes(bot))
