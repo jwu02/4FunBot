@@ -143,20 +143,21 @@ class Quotes(commands.Cog):
             conn = MySQLConnection(**dbconfig)
             cursor = conn.cursor()
 
-            query = """SELECT FROM quotes 
+            query = """SELECT * FROM quotes 
                        WHERE quote_id = %s"""
-            args1 = (quote_id, )
+            args1 = (quote_id,)
             cursor.execute(query, args1)
-            row = cursor.fetchone
+            row = cursor.fetchone()
 
             if row is not None:
                 query = """UPDATE quotes
                         SET quote = %s
                         WHERE quote_id = %s"""
-                args2 = (quote, quote_id)
+                args2 = (new_quote, quote_id)
                 cursor.execute(query, args2)
 
-                await ctx.send(f"Quote {quote_id} has been updated successfully to {new_quote}")
+                conn.commit()
+                await ctx.send(f"Quote {quote_id} has been updated successfully to: {new_quote}")
             else:
                 await ctx.send("No quote with given ID was found.")
 
@@ -172,6 +173,7 @@ class Quotes(commands.Cog):
 
     @update_quote.error
     async def update_quote_error(self, ctx, error):
+        print(error)
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Enter a quote ID and a quote after the command.")
 
