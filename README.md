@@ -1,4 +1,5 @@
-# 4FunBot
+# KazBot
+just for fun
 
 ## Commands
 - `!quote` returns a random quote

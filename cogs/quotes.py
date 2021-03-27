@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
 import random
+from mysql.connector import MySQLConnection, Error
+from kaz_bot_mysql_dbconfig import read_db_config
 
 class Quotes(commands.Cog):
     def __init__(self, bot):
@@ -8,21 +10,24 @@ class Quotes(commands.Cog):
 
     @commands.command()
     async def add_quote(self, ctx, *, quote):
-        with open("quotes.json", "r") as f:
-            quotes = json.load(f)
+        try:
+            dbconfig = read_db_config()
+            conn = MySQLConnection(**dbconfig)
+            cursor = conn.cursor()
 
-        quote_ids = [quoteObj['quoteId'] for quoteObj in quotes['quotes']]
-        if len(quote_ids) == 0:
-            last_quote_id = 0
-        else:
-            last_quote_id = quote_ids[-1]
-        
-        quotes['quotes'].append({'quoteId': last_quote_id+1, 'quote': quote})
+            query = """INSERT INTO quotes (quote, added_by) VALUES (%s, %s)"""
+            args = (quote, ctx.author.name+"#"+ctx.author.discriminator)
+            cursor.execute(query, args)
 
-        with open("quotes.json", "w") as f:
-            json.dump(quotes, f, indent=4)
+            conn.commit()
+            await ctx.send("Quote added.")
 
-        await ctx.send("Quote added.")
+        except Error as e:
+            print(e)
+
+        finally:
+            cursor.close()
+            conn.close()
 
     @add_quote.error
     async def add_quote_error(self, ctx, error):
@@ -32,31 +37,59 @@ class Quotes(commands.Cog):
     @commands.command()
     async def quote(self, ctx, quote_id=None):
         if quote_id:
-            with open("quotes.json", "r") as f:
-                quotes = json.load(f)
-            
             try:
                 quote_id = int(quote_id)
-                
-                get_quote = None
-                for quote in quotes['quotes']:
-                    if quote['quoteId'] == quote_id:
-                        get_quote = quote['quote']
-                        await ctx.send(f"**Quote {quote['quoteId']}:** {quote['quote']}")
-                        break
 
-                if not get_quote:
+                dbconfig = read_db_config()
+                conn = MySQLConnection(**dbconfig)
+                cursor = conn.cursor()
+
+                query = """SELECT * FROM quotes WHERE quote_id=%s"""
+                # require comma if single arg? to make args a tuple
+                args = (quote_id,)
+                cursor.execute(query, args)
+
+                # fetch the next row in the result set
+                row = cursor.fetchone()
+
+                if row is not None:
+                    quote_id = row[0]
+                    quote = row[1]
+                    await ctx.send(f'**Quote {str(quote_id)}:** {quote}')
+                else:
                     await ctx.send("No quote with given ID was found.")
+
             except ValueError:
                 await ctx.send("Enter a number for the quote ID.")
+
+            except Error as e:
+                print(e)
+
+            finally:
+                cursor.close()
+                conn.close()
+
         else:
-            with open("quotes.json", "r") as f:
-                quotes = json.load(f)
+            try: 
+                dbconfig = read_db_config()
+                conn = MySQLConnection(**dbconfig)
+                cursor = conn.cursor()
+                cursor.execute('SELECT * FROM quotes ORDER BY RAND() LIMIT 1')
+
+                # fetch the next row in the result set
+                row = cursor.fetchone()
+                
+                quote_id = row[0]
+                quote = row[1]
+                await ctx.send(f'**Quote {str(quote_id)}:** {quote}')
             
-            random_quote = random.choice(quotes['quotes'])
-            
-            await ctx.send(f"**Quote {str(random_quote['quoteId'])}:** {random_quote['quote']}")
-    
+            except Error as e:
+                print(e)
+
+            finally:
+                cursor.close()
+                conn.close()
+
     @quote.error
     async def quote_error(self, ctx, error):
         if isinstance(error, commands.CommandInvokeError):
@@ -64,26 +97,37 @@ class Quotes(commands.Cog):
 
     @commands.command()
     async def remove_quote(self, ctx, quote_id):
-        with open("quotes.json", "r") as f:
-            quotes = json.load(f)
-
         try:
             quote_id = int(quote_id)
 
-            removed_quote = None
-            for quote in quotes['quotes']:
-                if quote['quoteId'] == quote_id:
-                    removed_quote = quotes['quotes'].pop(quotes['quotes'].index(quote))
-                    await ctx.send(f"Removed quote {str(removed_quote['quoteId'])}: {removed_quote['quote']}")
-                    break
+            dbconfig = read_db_config()
+            conn = MySQLConnection(**dbconfig)
+            cursor = conn.cursor()
 
-            with open("quotes.json", "w") as f:
-                json.dump(quotes, f, indent=4)
+            query = """SELECT * FROM quotes WHERE quote_id=%s"""
+            # require comma if single arg? to make args a tuple
+            args = (quote_id,)
+            cursor.execute(query, args)
+            row = cursor.fetchone()
 
-            if not removed_quote:
+            if row is not None:
+                query = """DELETE FROM quotes WHERE quote_id=%s"""
+                cursor.execute(query, args)
+
+                conn.commit()
+                await ctx.send(f"Removed quote {str(row[0])}: {row[1]}")
+            else:
                 await ctx.send("No quote with given ID was found.")
+
         except ValueError:
             await ctx.send("Enter a number for the quote ID.")
+
+        except Error as e:
+            print(e)
+
+        finally:
+            cursor.close()
+            conn.close()
 
     @remove_quote.error
     async def remove_quote_error(self, ctx, error):
@@ -92,28 +136,39 @@ class Quotes(commands.Cog):
 
     @commands.command()
     async def update_quote(self, ctx, quote_id, *, new_quote):
-        with open("quotes.json", "r") as f:
-            quotes = json.load(f)
-        
         try:
             quote_id = int(quote_id)
 
-            updated = False
-            for quote in quotes['quotes']:
-                if quote['quoteId'] == quote_id:
-                    quote['quote'] = new_quote
-                    updated = True
-                    break
-            
-            with open("quotes.json", "w") as f:
-                json.dump(quotes, f, indent=4)
+            dbconfig = read_db_config()
+            conn = MySQLConnection(**dbconfig)
+            cursor = conn.cursor()
 
-            if updated:
+            query = """SELECT FROM quotes 
+                       WHERE quote_id = %s"""
+            args1 = (quote_id, )
+            cursor.execute(query, args1)
+            row = cursor.fetchone
+
+            if row is not None:
+                query = """UPDATE quotes
+                        SET quote = %s
+                        WHERE quote_id = %s"""
+                args2 = (quote, quote_id)
+                cursor.execute(query, args2)
+
                 await ctx.send(f"Quote {quote_id} has been updated successfully to {new_quote}")
             else:
                 await ctx.send("No quote with given ID was found.")
+
         except ValueError:
             await ctx.send("Enter a number for the quote ID.")
+        
+        except Error as e:
+            print(e)
+
+        finally:
+            cursor.close()
+            conn.close()
 
     @update_quote.error
     async def update_quote_error(self, ctx, error):

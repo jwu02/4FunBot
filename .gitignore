@@ -1,4 +1,7 @@
 venv
 .env
+config.ini
+schema.txt
 *.vscode
-cogs/__pycache__/
+*__pycache__
+mysql_exemplar_code/
